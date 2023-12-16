@@ -75,10 +75,10 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             # break
     time2=time()
     print("FPS:",(len(views)-1)/(time2-time1))
-    # print("writing training images.")
+    print(f"writing training images to {gts_path}.")
 
     multithread_write(gt_list, gts_path)
-    # print("writing rendering images.")
+    print(f"writing rendering images to {render_path}.")
 
     multithread_write(render_list, render_path)
 
