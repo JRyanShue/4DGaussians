@@ -23,6 +23,7 @@ class Deformation(nn.Module):
         self.skips = skips
         self.grid_pe = grid_pe
         self.no_grid = args.no_grid
+        # print(f"args.bounds, args.kplanes_config, args.multires: {args.bounds}, {args.kplanes_config}, {args.multires}")
         self.grid = HexPlaneField(args.bounds, args.kplanes_config, args.multires)
         
         self.args = args

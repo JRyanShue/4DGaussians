@@ -94,6 +94,7 @@ class ModelHiddenParams(ParamGroup):
         self.multires = [1, 2, 4, 8]
         self.no_dx=False
         self.no_grid=False
+        self.no_hexplane=False  # !! - Skip hexplane, only use static gaussians.
         self.no_ds=False
         self.no_dr=False
         self.no_do=True
@@ -105,6 +106,9 @@ class ModelHiddenParams(ParamGroup):
 
         
         super().__init__(parser, "ModelHiddenParams")
+
+        print(f"self.no_grid: {self.no_grid}")
+        print(f"self.no_hexplane: {self.no_hexplane}")
         
 class OptimizationParams(ParamGroup):
     def __init__(self, parser):

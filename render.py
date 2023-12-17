@@ -73,8 +73,8 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             gt_list.append(gt)
         # if idx >= 10:
             # break
-    time2=time()
-    print("FPS:",(len(views)-1)/(time2-time1))
+    time2 = time()
+    print("FPS:", (len(views)-1)/(time2-time1))
     print(f"writing training images to {gts_path}.")
 
     multithread_write(gt_list, gts_path)
@@ -84,21 +84,30 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
 
     
     imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), 'video_rgb.mp4'), render_images, fps=30)
-def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, skip_video: bool):
+def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, skip_video: bool, render_static: bool):
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree, hyperparam)
-        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
+        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)  # Change this. 
         cam_type=scene.dataset_type
         bg_color = [1,1,1] if dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
-        if not skip_train:
-            render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background,cam_type)
+        if not render_static:
+            if not skip_train:
+                render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background, cam_type)
 
-        if not skip_test:
-            render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background,cam_type)
-        if not skip_video:
-            render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background,cam_type)
+            if not skip_test:
+                render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background, cam_type)
+            if not skip_video:
+                render_set(dataset.model_path, "video", scene.loaded_iter, scene.getVideoCameras(), gaussians, pipeline, background, cam_type)
+        else:
+            # Render first test multi-view frame. 
+            print("Rendering frist multi-view frame in test set.")
+
+            # Only get the first frame from the dataset. Not really necessary, we really want to just get rid of the hex plane part. 
+            render_set(dataset.model_path, "static", scene.loaded_iter, scene.getVideoCameras(), gaussians, pipeline, background, cam_type)
+
+
 if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Testing script parameters")
@@ -110,9 +119,15 @@ if __name__ == "__main__":
     parser.add_argument("--skip_test", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--skip_video", action="store_true")
+    parser.add_argument("--render_static", action="store_true", help="Test case - \
+        forces the model to only learn a static scene (train on the first multi-view image)")
+    # parser.add_argument("--no_hexplane", action="store_true", help="Skip hexplane, \
+    #     only using static gaussians.")
     parser.add_argument("--configs", type=str)
     args = get_combined_args(parser)
     print("Rendering " , args.model_path)
+    if args.render_static: 
+        print("Rendering static scene - will only use the first multi-view frame. \n")
     if args.configs:
         import mmcv
         from utils.params_utils import merge_hparams
@@ -121,4 +136,4 @@ if __name__ == "__main__":
     # Initialize system state (RNG)
     safe_state(args.quiet)
 
-    render_sets(model.extract(args), hyperparam.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, args.skip_video)
+    render_sets(model.extract(args), hyperparam.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, args.skip_video, args.render_static)

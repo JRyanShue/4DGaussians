@@ -50,6 +50,7 @@ class GaussianModel:
         self.max_sh_degree = sh_degree  
         self._xyz = torch.empty(0)
         # self._deformation =  torch.empty(0)
+        print(f"vars(args): {vars(args)}")
         self._deformation = deform_network(args)
         # self.grid = TriPlaneGrid()
         self._features_dc = torch.empty(0)

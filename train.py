@@ -391,6 +391,8 @@ if __name__ == "__main__":
     parser.add_argument("--start_checkpoint", type=str, default = None)
     parser.add_argument("--expname", type=str, default = "")
     parser.add_argument("--configs", type=str, default = "")
+    # parser.add_argument("--no_hexplane", action="store_true", help="Skip hexplane, \
+    #     only using static gaussians.")
     
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
@@ -398,7 +400,9 @@ if __name__ == "__main__":
         import mmcv
         from utils.params_utils import merge_hparams
         config = mmcv.Config.fromfile(args.configs)
+        # print(f"config: {config}")
         args = merge_hparams(args, config)
+        # print(f"merged args: {args}")  # Every arg from input, config file, and default args. 
     print("Optimizing " + args.model_path)
 
     # Initialize system state (RNG)
