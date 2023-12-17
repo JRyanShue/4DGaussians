@@ -40,7 +40,7 @@ except ImportError:
     TENSORBOARD_FOUND = False
 def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations, 
                          checkpoint_iterations, checkpoint, debug_from,
-                         gaussians, scene, stage, tb_writer, train_iter,timer):
+                         gaussians, scene, stage, tb_writer, train_iter, timer):
     first_iter = 0
 
     gaussians.training_setup(opt)
@@ -283,12 +283,21 @@ def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, c
     timer = Timer()
     scene = Scene(dataset, gaussians, load_coarse=None, no_hexplane=no_hexplane)
     timer.start()
-    scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
-                             checkpoint_iterations, checkpoint, debug_from,
-                             gaussians, scene, "coarse", tb_writer, opt.coarse_iterations,timer)
-    scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
-                         checkpoint_iterations, checkpoint, debug_from,
-                         gaussians, scene, "fine", tb_writer, opt.iterations,timer)
+    if args.num_coarse_iterations is not None:
+        print(f"Training coarse for {args.num_coarse_iterations} iterations.")
+        scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
+                                checkpoint_iterations, checkpoint, debug_from,
+                                gaussians, scene, "coarse", tb_writer, args.num_coarse_iterations, timer)  # e.g. first 3k iterations
+    else: 
+        print(f"Training coarse for {opt.coarse_iterations} iterations.")
+        scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
+                                checkpoint_iterations, checkpoint, debug_from,
+                                gaussians, scene, "coarse", tb_writer, opt.coarse_iterations, timer)  # e.g. first 3k iterations
+    if not args.no_hexplane:
+        print(f"Training fine for {opt.iterations} iterations.")
+        scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
+                                checkpoint_iterations, checkpoint, debug_from,
+                                gaussians, scene, "fine", tb_writer, opt.iterations, timer)  # e.g. next 20k iterations
 
 def prepare_output_and_logger(expname):    
     if not args.model_path:
@@ -393,6 +402,8 @@ if __name__ == "__main__":
     parser.add_argument("--configs", type=str, default = "")
     parser.add_argument("--no_hexplane", action="store_true", help="Skip hexplane, \
         only using static gaussians.")
+    parser.add_argument("--num_coarse_iterations", type=int, default = None, help=" \
+        Overrides the coarse_iterations argument. Need when training on one frame (one timestep). ")
     
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
