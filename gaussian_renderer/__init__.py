@@ -84,9 +84,16 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         # means3D_deform, scales_deform, rotations_deform, opacity_deform = pc._deformation(means3D[deformation_point], scales[deformation_point], 
         #                                                                  rotations[deformation_point], opacity[deformation_point],
         #                                                                  time[deformation_point])
-        means3D_final, scales_final, rotations_final, opacity_final, shs_final = pc._deformation(means3D, scales, 
-                                                                 rotations, opacity, shs,
-                                                                 time)
+
+        if not pc.no_hexplane:
+            # Use hexplane to deform gaussians with respect to time
+            means3D_final, scales_final, rotations_final, opacity_final, shs_final = pc._deformation(means3D, scales, 
+                                                                    rotations, opacity, shs,
+                                                                    time)
+        else:
+            # Identity (TODO: Implement our gaussian deformation method)
+            means3D_final, scales_final, rotations_final, opacity_final, shs_final = means3D, scales, rotations, opacity, shs
+
         # time1 = get_time()
     # print("deformation forward:",time1-time0)
     # print(time.max())
