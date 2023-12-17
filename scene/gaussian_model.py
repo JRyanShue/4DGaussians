@@ -45,13 +45,20 @@ class GaussianModel:
         self.rotation_activation = torch.nn.functional.normalize
 
 
-    def __init__(self, sh_degree : int, args):
+    def __init__(self, sh_degree : int, args, no_hexplane = False):
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree  
         self._xyz = torch.empty(0)
+        self.no_hexplane = no_hexplane
         # self._deformation =  torch.empty(0)
-        print(f"vars(args): {vars(args)}")
-        self._deformation = deform_network(args)
+        # print(f"vars(args): {vars(args)}")
+        if not self.no_hexplane:
+            print("Using hexplane deformer.")
+            self._deformation = deform_network(args)
+        else:
+            # TODO(JRyanShue): Implement our gaussian deformation. 
+            print("Using gaussian deformer.")
+            self._deformation = None
         # self.grid = TriPlaneGrid()
         self._features_dc = torch.empty(0)
         self._features_rest = torch.empty(0)
@@ -157,7 +164,8 @@ class GaussianModel:
         opacities = inverse_sigmoid(0.1 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
 
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
-        self._deformation = self._deformation.to("cuda") 
+        if not self.no_hexplane: 
+            self._deformation = self._deformation.to("cuda") 
         # self.grid = self.grid.to("cuda")
         self._features_dc = nn.Parameter(features[:,:,0:1].transpose(1, 2).contiguous().requires_grad_(True))
         self._features_rest = nn.Parameter(features[:,:,1:].transpose(1, 2).contiguous().requires_grad_(True))
