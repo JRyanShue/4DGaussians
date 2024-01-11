@@ -259,15 +259,16 @@ class GaussianModel:
     #         xyz = self.compute_deformation(time)
     def load_model(self, path):
         print("loading model from exists{}".format(path))
-        weight_dict = torch.load(os.path.join(path,"deformation.pth"),map_location="cuda")
-        self._deformation.load_state_dict(weight_dict)
-        self._deformation = self._deformation.to("cuda")
-        self._deformation_table = torch.gt(torch.ones((self.get_xyz.shape[0]),device="cuda"),0)
-        self._deformation_accum = torch.zeros((self.get_xyz.shape[0],3),device="cuda")
-        if os.path.exists(os.path.join(path, "deformation_table.pth")):
-            self._deformation_table = torch.load(os.path.join(path, "deformation_table.pth"),map_location="cuda")
-        if os.path.exists(os.path.join(path, "deformation_accum.pth")):
-            self._deformation_accum = torch.load(os.path.join(path, "deformation_accum.pth"),map_location="cuda")
+        if not self.no_hexplane:
+            weight_dict = torch.load(os.path.join(path,"deformation.pth"),map_location="cuda")
+            self._deformation.load_state_dict(weight_dict)
+            self._deformation = self._deformation.to("cuda")
+            self._deformation_table = torch.gt(torch.ones((self.get_xyz.shape[0]),device="cuda"),0)
+            self._deformation_accum = torch.zeros((self.get_xyz.shape[0],3),device="cuda")
+            if os.path.exists(os.path.join(path, "deformation_table.pth")):
+                self._deformation_table = torch.load(os.path.join(path, "deformation_table.pth"),map_location="cuda")
+            if os.path.exists(os.path.join(path, "deformation_accum.pth")):
+                self._deformation_accum = torch.load(os.path.join(path, "deformation_accum.pth"),map_location="cuda")
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
         # print(self._deformation.deformation_net.grid.)
     def save_deformation(self, path):

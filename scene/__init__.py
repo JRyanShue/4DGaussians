@@ -43,7 +43,8 @@ class Scene:
         self.train_cameras = {}
         self.test_cameras = {}
         self.video_cameras = {}
-        if os.path.exists(os.path.join(args.source_path, "sparse")):
+        if os.path.exists(os.path.join(args.source_path, "sparse")):  # Tandt default. 
+            print("Assuming Colmap data set!")
             scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval, args.llffhold)
             dataset_type="colmap"
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
@@ -51,12 +52,15 @@ class Scene:
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval, args.extension)
             dataset_type="blender"
         elif os.path.exists(os.path.join(args.source_path, "poses_bounds.npy")):
+            print("Assuming Dynerf data set!")
             scene_info = sceneLoadTypeCallbacks["dynerf"](args.source_path, args.white_background, args.eval)
             dataset_type="dynerf"
         elif os.path.exists(os.path.join(args.source_path,"dataset.json")):
+            print("Assuming Nerfies data set!")
             scene_info = sceneLoadTypeCallbacks["nerfies"](args.source_path, False, args.eval)
             dataset_type="nerfies"
         elif os.path.exists(os.path.join(args.source_path,"train_meta.json")):
+            print("Assuming PanopticSports data set!")
             scene_info = sceneLoadTypeCallbacks["PanopticSports"](args.source_path)
             dataset_type="PanopticSports"
         else:
@@ -65,8 +69,11 @@ class Scene:
         self.dataset_type = dataset_type
         self.cameras_extent = scene_info.nerf_normalization["radius"]
         print("Loading Training Cameras")
+        # print(f"len(scene_info.train_cameras): {len(scene_info.train_cameras)}")  # 219
+        # print(f"scene_info.train_cameras[0:10]: {scene_info.train_cameras[0:10]}")  # img names 2, 3, 4, 5, 6, 7, 8, 10, 11, 12
         self.train_camera = FourDGSdataset(scene_info.train_cameras, args, dataset_type)
         print("Loading Test Cameras")
+        # print(f"len(scene_info.test_cameras): {len(scene_info.test_cameras)}")  # 32 - every 8th image, starting w the first, is used for testing. Makes sense -- need same distribution of views. 
         self.test_camera = FourDGSdataset(scene_info.test_cameras, args, dataset_type)
         print("Loading Video Cameras")
         self.video_camera = FourDGSdataset(scene_info.video_cameras, args, dataset_type)

@@ -41,6 +41,9 @@ except ImportError:
 def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations, 
                          checkpoint_iterations, checkpoint, debug_from,
                          gaussians, scene, stage, tb_writer, train_iter, timer):
+
+    # print(f"opt.densify_until_iter: {opt.densify_until_iter}")  # 15000 by default
+
     first_iter = 0
 
     gaussians.training_setup(opt)
@@ -65,11 +68,11 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
     first_iter += 1
     # lpips_model = lpips.LPIPS(net="alex").cuda()
     video_cams = scene.getVideoCameras()
-    test_cams = scene.getTestCameras()
+    test_cams = scene.getTestCameras()  # Train/test split. 
     train_cams = scene.getTrainCameras()
 
 
-    if not viewpoint_stack and not opt.dataloader:
+    if not viewpoint_stack and not opt.dataloader:  # True by default (at least for coarse training)
         # dnerf's branch
         viewpoint_stack = [i for i in train_cams]
         temp_list = copy.deepcopy(viewpoint_stack)
@@ -98,7 +101,9 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
     else:
         load_in_memory = False 
         
-    for iteration in range(first_iter, final_iter+1):        
+    for iteration in range(first_iter, final_iter+1): 
+        start_time = time()
+
         if network_gui.conn == None:
             network_gui.try_connect()
         while network_gui.conn != None:
@@ -114,6 +119,9 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             except Exception as e:
                 network_gui.conn = None
 
+        # print(f"network_gui: {time() - start_time}s.")
+        start_time = time()
+
         iter_start.record()
 
         gaussians.update_learning_rate(iteration)
@@ -124,8 +132,11 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
 
         # Pick a random Camera
 
+        # print(f"2: {time() - start_time}s.")
+        start_time = time()
+
         # dynerf's branch
-        if opt.dataloader and not load_in_memory:
+        if opt.dataloader and not load_in_memory:  # False by default
             try:
                 viewpoint_cams = next(loader)
             except StopIteration:
@@ -139,16 +150,20 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             idx = 0
             viewpoint_cams = []
 
-            while idx < batch_size :    
+            while idx < batch_size :  # batch size 1 by default
                     
                 viewpoint_cam = viewpoint_stack.pop(randint(0,len(viewpoint_stack)-1))
-                if not viewpoint_stack :
+                if not viewpoint_stack :  # Finished "epoch"
                     viewpoint_stack =  temp_list.copy()
                 viewpoint_cams.append(viewpoint_cam)
                 idx +=1
             if len(viewpoint_cams) == 0:
                 continue
-        # print(len(viewpoint_cams))     
+
+        # print(f"Get dataloader: {time() - start_time}s.")
+        start_time = time()
+
+        # print(f"len(viewpoint_cams): {len(viewpoint_cams)}")  # 1, for coarse training
         # breakpoint()   
         # Render
         if (iteration - 1) == debug_from:
@@ -172,6 +187,8 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             visibility_filter_list.append(visibility_filter.unsqueeze(0))
             viewspace_point_tensor_list.append(viewspace_point_tensor)
         
+        print(f"Rendering: {time() - start_time}s.")
+        start_time = time()
 
         radii = torch.cat(radii_list,0).max(dim=0).values
         visibility_filter = torch.cat(visibility_filter_list).any(dim=0)
@@ -184,6 +201,8 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         psnr_ = psnr(image_tensor, gt_image_tensor).mean().double()
         # norm
         
+        # print(f"Loss calculation: {time() - start_time}s.")
+        start_time = time()
 
         loss = Ll1
         if stage == "fine" and hyper.time_smoothness_weight != 0:
@@ -205,6 +224,9 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         for idx in range(0, len(viewspace_point_tensor_list)):
             viewspace_point_tensor_grad = viewspace_point_tensor_grad + viewspace_point_tensor_list[idx].grad
         iter_end.record()
+
+        print(f"Backprop: {time() - start_time}s.")
+        start_time = time()
 
         with torch.no_grad():
             # Progress bar
@@ -265,6 +287,8 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                     print("reset opacity")
                     gaussians.reset_opacity()
                     
+            # print(f"3: {time() - start_time}s.")
+            start_time = time()
             
 
             # Optimizer step
@@ -275,8 +299,13 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+
+            # print(f"Optimizer step: {time() - start_time}s.")
+            start_time = time()
+
 def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, expname, no_hexplane=False):
     # first_iter = 0
+
     tb_writer = prepare_output_and_logger(expname)
     gaussians = GaussianModel(dataset.sh_degree, hyper, no_hexplane=no_hexplane)
     dataset.model_path = args.model_path
@@ -333,11 +362,15 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
     if iteration in testing_iterations:
         torch.cuda.empty_cache()
         # 
-        validation_configs = ({'name': 'test', 'cameras' : [scene.getTestCameras()[idx % len(scene.getTestCameras())] for idx in range(10, 5000, 299)]},
-                              {'name': 'train', 'cameras' : [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(10, 5000, 299)]})
+        # validation_configs = ({'name': 'test', 'cameras' : [scene.getTestCameras()[idx % len(scene.getTestCameras())] for idx in range(10, 5000, 299)]},
+        #                       {'name': 'train', 'cameras' : [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(10, 5000, 299)]})
+        
+        validation_configs = ({'name': 'test', 'cameras' : scene.getTestCameras()}, 
+                              {'name': 'train', 'cameras' : [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(5, 30, 5)]})
 
         for config in validation_configs:
             if config['cameras'] and len(config['cameras']) > 0:
+                print(f"Evaluating on {len(config['cameras'])} cameras.")
                 l1_test = 0.0
                 psnr_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
