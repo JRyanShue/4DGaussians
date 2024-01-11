@@ -48,7 +48,6 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
 
     gaussians.training_setup(opt)
     if checkpoint:
-        breakpoint()
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
 

@@ -96,9 +96,8 @@ class GaussianModel:
     def restore(self, model_args, training_args):
         (self.active_sh_degree, 
         self._xyz, 
-        deform_state,
         self._deformation_table,
-        
+        self._deformation,
         # self.grid,
         self._features_dc, 
         self._features_rest,
@@ -110,7 +109,6 @@ class GaussianModel:
         denom,
         opt_dict, 
         self.spatial_lr_scale) = model_args
-        self._deformation.load_state_dict(deform_state)
         self.training_setup(training_args)
         self.xyz_gradient_accum = xyz_gradient_accum
         self.denom = denom
