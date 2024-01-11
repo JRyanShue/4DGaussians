@@ -48,8 +48,15 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
 
     gaussians.training_setup(opt)
     if checkpoint:
-        (model_params, first_iter) = torch.load(checkpoint)
-        gaussians.restore(model_params, opt)
+        # breakpoint()
+        if stage == "coarse" and stage not in checkpoint:
+            print("start from fine stage, skip coarse stage.")
+            # process is in the coarse stage, but start from fine stage
+            return
+        if stage in checkpoint: 
+            (model_params, first_iter) = torch.load(checkpoint)
+            gaussians.restore(model_params, opt)
+
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -297,7 +304,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
 
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
-                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" +f"_{stage}_" + str(iteration) + ".pth")
 
             # print(f"Optimizer step: {time() - start_time}s.")
             start_time = time()
